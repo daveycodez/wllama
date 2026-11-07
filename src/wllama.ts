@@ -601,6 +601,15 @@ export class Wllama {
       skip_chat_parsing: params.skip_chat_parsing,
       prefill_assistant: params.prefill_assistant,
     });
+    if (!loadResult.success) {
+      // llama.cpp could not load the model or create its context (e.g. no memory for the KV cache)
+      // fail here instead of aborting at the first request
+      await this.exit();
+      throw new WllamaError(
+        'Failed to load the model or create its context (see the log; a smaller n_ctx needs less memory)',
+        'load_error'
+      );
+    }
     const loadedCtxInfo: LoadedContextInfo & GlueMsgLoadRes = {
       ...loadResult,
       metadata: {},
