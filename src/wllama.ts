@@ -24,6 +24,8 @@ import type {
   GlueMsgGetResultRes,
   GlueMsgLoadRes,
   GlueMsgTestBackendOpsRes,
+  GlueMsgSlotSaveRes,
+  GlueMsgSlotRestoreRes,
 } from './glue/messages';
 import { LIBLLAMA_VERSION } from './workers-code/generated';
 import type {
@@ -932,6 +934,54 @@ export class Wllama {
         'unknown_error'
       );
     }
+  }
+
+  /**
+   * Save the state of a slot (KV cache, recurrent state, context checkpoints and tokens), in the llama-server slot save format.
+   *
+   * Restore it with `restoreSlotState` into the same model, loaded with the same parameters, for example after a page reload. Fails while a completion is running.
+   * @param idSlot The slot to save. By default, the slot of the last completion.
+   * @returns The state, as bytes
+   */
+  async saveSlotState(idSlot: number = -1): Promise<Uint8Array> {
+    this.checkModelLoaded();
+    const result = await this.proxy.wllamaAction<GlueMsgSlotSaveRes>(
+      'slot_save',
+      { _name: 'slsv_req', id_slot: idSlot }
+    );
+    if (!result.success) {
+      throw new WllamaError(
+        `Failed to save slot ${result.id_slot}: ${result.message}`,
+        'inference_error'
+      );
+    }
+    return result.data;
+  }
+
+  /**
+   * Restore a slot state saved with `saveSlotState`.
+   *
+   * The next completion reuses it like any cached prompt. Fails while a completion is running, or if the state does not fit the loaded model and context.
+   * @param data The state, from `saveSlotState`
+   * @param idSlot The slot to restore into. By default, the slot of the last completion, or slot 0 before any.
+   * @returns The number of tokens restored
+   */
+  async restoreSlotState(
+    data: Uint8Array,
+    idSlot: number = -1
+  ): Promise<number> {
+    this.checkModelLoaded();
+    const result = await this.proxy.wllamaAction<GlueMsgSlotRestoreRes>(
+      'slot_restore',
+      { _name: 'slrs_req', id_slot: idSlot, data }
+    );
+    if (!result.success) {
+      throw new WllamaError(
+        `Failed to restore slot ${result.id_slot}: ${result.message}`,
+        'inference_error'
+      );
+    }
+    return result.n_tokens;
   }
 
   /**

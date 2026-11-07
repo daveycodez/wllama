@@ -62,7 +62,8 @@ extern "C"
   {
     wllama_fs::make_sure_ready();
     FILE *f = __real_fopen(path, mode);
-    if (f)
+    // only model files are read from JS, other files (slot state) are in MEMFS
+    if (f && (strncmp(path, "models/", 7) == 0 || strncmp(path, "/models/", 8) == 0))
     {
       s_file_path_map[f] = path;
     }

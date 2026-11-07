@@ -569,6 +569,34 @@ test.sequential('generates chat completion using async iterator', async () => {
   await wllama.exit();
 });
 
+test.sequential('saves and restores slot state', async () => {
+  const messages = [
+    { role: 'system' as const, content: 'You are helpful.' },
+    { role: 'user' as const, content: 'Hi!' },
+  ];
+  const params = { messages, max_tokens: 10, temperature: 0.0, seed: 42 };
+
+  let wllama = createWllama();
+  await wllama.loadModelFromUrl(TINY_MODEL, { n_ctx: 1024 });
+  const res1 = await wllama.createChatCompletion(params);
+  const state = await wllama.saveSlotState();
+  expect(state.byteLength).toBeGreaterThan(0);
+  await wllama.exit();
+
+  wllama = createWllama();
+  await wllama.loadModelFromUrl(TINY_MODEL, { n_ctx: 1024 });
+  const nTokens = await wllama.restoreSlotState(state);
+  expect(nTokens).toBeGreaterThan(0);
+  const res2 = await wllama.createChatCompletion(params);
+  expect(res2.choices[0].message.content).toBe(res1.choices[0].message.content);
+
+  await expect(
+    wllama.restoreSlotState(new Uint8Array([1, 2, 3, 4]))
+  ).rejects.toThrow();
+
+  await wllama.exit();
+});
+
 test('checks wasm version', async () => {
   const check = (version?: string, options: WllamaConfig = {}) =>
     (createWllama(CONFIG_PATHS, options) as any).checkWasmVersion(version);
