@@ -342,9 +342,19 @@ struct wllama_context
           meta->logit_bias_eog,
           body);
       task.params.res_type = res_type;
-      task.cli_prompt = prompt;
-      task.cli_files = files;
-      task.cli = true;
+      if (files.empty())
+      {
+        // tokenize now, as llama-server does: apply_chat_session() looks for
+        // the chat messages in task.tokens, and the server places context
+        // checkpoints at them
+        task.tokens = std::move(tokenize_input_prompts(vocab, nullptr, prompt, true, true, mtmd_helper_init_opt_default())[0]);
+      }
+      else
+      {
+        task.cli_prompt = prompt;
+        task.cli_files = files;
+        task.cli = true;
+      }
       task.apply_chat_session(chat_session);
 
       std::vector<server_task> tasks;
