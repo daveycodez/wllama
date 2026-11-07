@@ -169,6 +169,11 @@ export const GLUE_MESSAGE_PROTOTYPES: { [name: string]: GlueMessageProto } = {
         "isNullable": true
       },
       {
+        "type": "bool",
+        "name": "token_embd_gpu",
+        "isNullable": true
+      },
+      {
         "type": "int",
         "name": "n_ctx_checkpoints",
         "isNullable": true
@@ -720,6 +725,7 @@ export interface GlueMsgLoadReq {
   kv_unified?: boolean | undefined;
   flash_attn?: boolean | undefined;
   swa_full?: boolean | undefined;
+  token_embd_gpu?: boolean | undefined;
   n_ctx_checkpoints?: number | undefined;
   checkpoint_min_step?: number | undefined;
   chat_template?: string | undefined;

@@ -566,6 +566,7 @@ export class Wllama {
       kv_unified: params.kv_unified ?? true,
       flash_attn: params.flash_attn,
       swa_full: params.swa_full,
+      token_embd_gpu: params.token_embd_gpu,
       chat_template: params.chat_template,
       jinja: params.jinja,
       reasoning: params.reasoning,
