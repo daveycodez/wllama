@@ -169,6 +169,35 @@ test.sequential('generates completion', async () => {
   await wllama.exit();
 });
 
+test.sequential(
+  'generates the same text with n-gram speculative decoding',
+  async () => {
+    const prompt =
+      'Lily said: one, two, three. Tom said: one, two, three. Lily said: one, two, three. Tom said:';
+    const generate = async (params = {}) => {
+      const wllama = createWllama();
+      await wllama.loadModelFromUrl(TINY_MODEL, { n_ctx: 1024, ...params });
+      const res = await wllama.createCompletion({
+        prompt,
+        max_tokens: 64,
+        temperature: 0.0,
+      });
+      await wllama.exit();
+      return res;
+    };
+
+    const ref = await generate();
+    const res = await generate({
+      spec_type: 'ngram-simple',
+      spec_ngram_size_n: 3,
+      spec_ngram_size_m: 8,
+    });
+
+    expect(res.choices[0].text).toBe(ref.choices[0].text);
+    expect((res.timings as any)?.draft_n).toBeGreaterThan(0);
+  }
+);
+
 test.sequential('generates completions in parallel', async () => {
   const wllama = createWllama();
 
