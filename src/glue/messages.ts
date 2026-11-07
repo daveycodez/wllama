@@ -679,6 +679,94 @@ export const GLUE_MESSAGE_PROTOTYPES: { [name: string]: GlueMessageProto } = {
         "isNullable": false
       }
     ]
+  },
+  "slsv_req": {
+    "name": "slsv_req",
+    "structName": "glue_msg_slot_save_req",
+    "className": "GlueMsgSlotSaveReq",
+    "fields": [
+      {
+        "type": "int",
+        "name": "id_slot",
+        "isNullable": false
+      }
+    ]
+  },
+  "slsv_res": {
+    "name": "slsv_res",
+    "structName": "glue_msg_slot_save_res",
+    "className": "GlueMsgSlotSaveRes",
+    "fields": [
+      {
+        "type": "bool",
+        "name": "success",
+        "isNullable": false
+      },
+      {
+        "type": "str",
+        "name": "message",
+        "isNullable": false
+      },
+      {
+        "type": "int",
+        "name": "id_slot",
+        "isNullable": false
+      },
+      {
+        "type": "int",
+        "name": "n_tokens",
+        "isNullable": false
+      },
+      {
+        "type": "raw",
+        "name": "data",
+        "isNullable": false
+      }
+    ]
+  },
+  "slrs_req": {
+    "name": "slrs_req",
+    "structName": "glue_msg_slot_restore_req",
+    "className": "GlueMsgSlotRestoreReq",
+    "fields": [
+      {
+        "type": "int",
+        "name": "id_slot",
+        "isNullable": false
+      },
+      {
+        "type": "raw",
+        "name": "data",
+        "isNullable": false
+      }
+    ]
+  },
+  "slrs_res": {
+    "name": "slrs_res",
+    "structName": "glue_msg_slot_restore_res",
+    "className": "GlueMsgSlotRestoreRes",
+    "fields": [
+      {
+        "type": "bool",
+        "name": "success",
+        "isNullable": false
+      },
+      {
+        "type": "str",
+        "name": "message",
+        "isNullable": false
+      },
+      {
+        "type": "int",
+        "name": "id_slot",
+        "isNullable": false
+      },
+      {
+        "type": "int",
+        "name": "n_tokens",
+        "isNullable": false
+      }
+    ]
   }
 };
 
@@ -878,5 +966,37 @@ export interface GlueMsgTestBackendOpsRes {
   success: boolean;
 }
 
+// struct glue_msg_slot_save_req
+export interface GlueMsgSlotSaveReq {
+  _name: "slsv_req";
+  id_slot: number;
+}
 
-export type GlueMsg = GlueMsgError | GlueMsgLoadReq | GlueMsgLoadRes | GlueMsgCompletionReq | GlueMsgCompletionRes | GlueMsgEmbeddingReq | GlueMsgEmbeddingRes | GlueMsgRerankReq | GlueMsgRerankRes | GlueMsgSystemoneReq | GlueMsgSystemoneRes | GlueMsgGetResultReq | GlueMsgGetResultRes | GlueMsgCancelReq | GlueMsgCancelRes | GlueMsgTestBackendOpsReq | GlueMsgTestBackendOpsRes;
+// struct glue_msg_slot_save_res
+export interface GlueMsgSlotSaveRes {
+  _name: "slsv_res";
+  success: boolean;
+  message: string;
+  id_slot: number;
+  n_tokens: number;
+  data: Uint8Array;
+}
+
+// struct glue_msg_slot_restore_req
+export interface GlueMsgSlotRestoreReq {
+  _name: "slrs_req";
+  id_slot: number;
+  data: Uint8Array;
+}
+
+// struct glue_msg_slot_restore_res
+export interface GlueMsgSlotRestoreRes {
+  _name: "slrs_res";
+  success: boolean;
+  message: string;
+  id_slot: number;
+  n_tokens: number;
+}
+
+
+export type GlueMsg = GlueMsgError | GlueMsgLoadReq | GlueMsgLoadRes | GlueMsgCompletionReq | GlueMsgCompletionRes | GlueMsgEmbeddingReq | GlueMsgEmbeddingRes | GlueMsgRerankReq | GlueMsgRerankRes | GlueMsgSystemoneReq | GlueMsgSystemoneRes | GlueMsgGetResultReq | GlueMsgGetResultRes | GlueMsgCancelReq | GlueMsgCancelRes | GlueMsgTestBackendOpsReq | GlueMsgTestBackendOpsRes | GlueMsgSlotSaveReq | GlueMsgSlotSaveRes | GlueMsgSlotRestoreReq | GlueMsgSlotRestoreRes;

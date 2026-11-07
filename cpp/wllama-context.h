@@ -297,6 +297,9 @@ struct wllama_context
   std::unordered_map<int, decision_request> decision_reqs; // keyed by req_id
   std::unordered_map<int, std::vector<json>> embedding_reqs; // keyed by req_id
 
+  // slot of the last finished completion
+  int last_id_slot = -1;
+
   struct console
   {
     struct spinner
@@ -945,6 +948,10 @@ struct wllama_context
     const bool has_more = rd.has_next();
 
     json data_json;
+    if (result && !is_error && dynamic_cast<server_task_result_cmpl_final *>(result.get()))
+    {
+      last_id_slot = result->id_slot;
+    }
     if (result)
     {
       if (auto *embd = dynamic_cast<server_task_result_embd *>(result.get()))
@@ -1028,6 +1035,107 @@ struct wllama_context
     }
 
     res.success.value = true;
+    return res;
+  }
+
+  // slot save / restore go through a temp file in MEMFS, the bytes are passed to JS
+
+  static constexpr const char *SLOT_STATE_PATH = "/tmp/wllama-slot-state.bin";
+
+  // returns the error message, empty on success
+  std::string run_slot_task(server_task_type type, int id_slot, server_task_result_ptr &out)
+  {
+    auto rd = ctx_server.get_response_reader();
+    server_task task(type);
+    task.id = rd.get_new_id();
+    task.slot_action.id_slot = id_slot;
+    task.slot_action.filename = SLOT_STATE_PATH;
+    task.slot_action.filepath = SLOT_STATE_PATH;
+    rd.post_task(std::move(task));
+    // callers check that no request is running, so the task runs now
+    run_loop();
+    auto [result, is_error] = get_next_result(rd);
+    if (!result)
+      return "no result";
+    if (is_error)
+    {
+      json err = result->to_json();
+      return err.value("message", std::string("unknown error"));
+    }
+    out = std::move(result);
+    return "";
+  }
+
+  // default: the slot of the last completion, else 0
+  int pick_slot(int id_slot)
+  {
+    if (id_slot >= 0)
+      return id_slot;
+    return last_id_slot >= 0 ? last_id_slot : 0;
+  }
+
+  glue_msg_slot_save_res action_slot_save(const char *req_raw)
+  {
+    PARSE_REQ(glue_msg_slot_save_req);
+    glue_msg_slot_save_res res;
+    const int id_slot = pick_slot(req.id_slot.value);
+    res.id_slot.value = id_slot;
+    res.n_tokens.value = 0;
+    if (!readers.empty())
+    {
+      // the server would defer the task until the slot is free
+      res.success.value = false;
+      res.message.value = "a request is running";
+      return res;
+    }
+    server_task_result_ptr result;
+    std::string err = run_slot_task(SERVER_TASK_TYPE_SLOT_SAVE, id_slot, result);
+    if (err.empty())
+    {
+      auto *saved = dynamic_cast<server_task_result_slot_save_load *>(result.get());
+      res.n_tokens.value = saved ? (int)saved->n_tokens : 0;
+      std::ifstream f(SLOT_STATE_PATH, std::ios::binary);
+      res.data.buf.assign(std::istreambuf_iterator<char>(f), {});
+      if (res.data.buf.empty())
+        err = "empty state file";
+    }
+    std::remove(SLOT_STATE_PATH);
+    res.success.value = err.empty();
+    res.message.value = err;
+    return res;
+  }
+
+  glue_msg_slot_restore_res action_slot_restore(const char *req_raw)
+  {
+    PARSE_REQ(glue_msg_slot_restore_req);
+    glue_msg_slot_restore_res res;
+    const int id_slot = pick_slot(req.id_slot.value);
+    res.id_slot.value = id_slot;
+    res.n_tokens.value = 0;
+    if (!readers.empty())
+    {
+      res.success.value = false;
+      res.message.value = "a request is running";
+      return res;
+    }
+    std::string err;
+    {
+      std::ofstream f(SLOT_STATE_PATH, std::ios::binary);
+      f.write(req.data.buf.data(), req.data.buf.size());
+      if (!f)
+        err = "cannot write the state file";
+    }
+    server_task_result_ptr result;
+    if (err.empty())
+      err = run_slot_task(SERVER_TASK_TYPE_SLOT_RESTORE, id_slot, result);
+    if (err.empty())
+    {
+      auto *restored = dynamic_cast<server_task_result_slot_save_load *>(result.get());
+      res.n_tokens.value = restored ? (int)restored->n_tokens : 0;
+    }
+    std::remove(SLOT_STATE_PATH);
+    res.success.value = err.empty();
+    res.message.value = err;
     return res;
   }
 
