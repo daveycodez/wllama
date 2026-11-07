@@ -590,6 +590,18 @@ struct wllama_context
       params.speculative.draft.cpuparams.n_threads = req.spec_draft_threads.value;
     if (req.spec_draft_threads_batch.not_null())
       params.speculative.draft.cpuparams_batch.n_threads = req.spec_draft_threads_batch.value;
+    // like llama-server --spec-type and --spec-ngram-*, the n-gram sizes apply to every n-gram type
+    if (req.spec_type.not_null())
+      params.speculative.types = common_speculative_types_from_names(string_split<std::string>(req.spec_type.value, ','));
+    for (auto *ngram : {&params.speculative.ngram_simple, &params.speculative.ngram_map_k, &params.speculative.ngram_map_k4v})
+    {
+      if (req.spec_ngram_size_n.not_null())
+        ngram->size_n = req.spec_ngram_size_n.value;
+      if (req.spec_ngram_size_m.not_null())
+        ngram->size_m = req.spec_ngram_size_m.value;
+      if (req.spec_ngram_min_hits.not_null())
+        ngram->min_hits = req.spec_ngram_min_hits.value;
+    }
 
     // kv overrides
     if (req.kv_overrides_keys.not_null() && req.kv_overrides_vals.not_null())

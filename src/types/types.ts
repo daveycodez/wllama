@@ -68,6 +68,16 @@ export interface LoadModelParams {
   spec_draft_p_min?: number;
   spec_draft_threads?: number;
   spec_draft_threads_batch?: number;
+  /**
+   * Speculative decoding without a draft model: llama-server's `--spec-type`
+   * (comma-separated, e.g. `"ngram-simple"`), and its n-gram sizes.
+   */
+  spec_type?: string;
+  /** Longest n-gram looked up in the tokens so far. */
+  spec_ngram_size_n?: number;
+  /** Most tokens drafted at once. */
+  spec_ngram_size_m?: number;
+  spec_ngram_min_hits?: number;
   kv_overrides?: Record<string, string>;
   reasoning_budget_tokens?: number;
   reasoning_budget_message?: string;

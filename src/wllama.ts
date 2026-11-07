@@ -589,6 +589,10 @@ export class Wllama {
       spec_draft_p_min: params.spec_draft_p_min,
       spec_draft_threads: params.spec_draft_threads,
       spec_draft_threads_batch: params.spec_draft_threads_batch,
+      spec_type: params.spec_type,
+      spec_ngram_size_n: params.spec_ngram_size_n,
+      spec_ngram_size_m: params.spec_ngram_size_m,
+      spec_ngram_min_hits: params.spec_ngram_min_hits,
       kv_overrides_keys: params.kv_overrides
         ? Object.keys(params.kv_overrides)
         : undefined,
