@@ -11,6 +11,7 @@
 #include <algorithm>
 
 #include "llama.h"
+#include "gguf.h"
 #include "common.h"
 #include "sampling.h"
 #include "chat.h"
@@ -419,6 +420,33 @@ struct wllama_context
   //////////////////////////////////////////
   //////////////////////////////////////////
 
+  // GPU buffer type for token_embd.weight when the model has no output.weight (the output head reuses token_embd) and the GPU supports GET_ROWS on it, else null
+  static ggml_backend_buffer_type_t token_embd_gpu_buft(const std::string &path)
+  {
+    ggml_backend_dev_t gpu = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_GPU);
+    if (gpu == nullptr)
+      return nullptr;
+    ggml_context *meta = nullptr;
+    gguf_init_params gguf_params = {/* .no_alloc = */ true, /* .ctx = */ &meta};
+    gguf_context *gguf = gguf_init_from_file(path.c_str(), gguf_params);
+    if (gguf == nullptr)
+      return nullptr;
+    ggml_backend_buffer_type_t buft = nullptr;
+    ggml_tensor *embd = ggml_get_tensor(meta, "token_embd.weight");
+    if (embd != nullptr && gguf_find_tensor(gguf, "output.weight") < 0)
+    {
+      ggml_init_params op_params = {/* .mem_size = */ 4 * ggml_tensor_overhead(), /* .mem_buffer = */ nullptr, /* .no_alloc = */ true};
+      ggml_context *op_ctx = ggml_init(op_params);
+      ggml_tensor *rows = ggml_new_tensor_1d(op_ctx, GGML_TYPE_I32, 1);
+      if (ggml_backend_dev_supports_op(gpu, ggml_get_rows(op_ctx, embd, rows)))
+        buft = ggml_backend_dev_buffer_type(gpu);
+      ggml_free(op_ctx);
+    }
+    ggml_free(meta);
+    gguf_free(gguf);
+    return buft;
+  }
+
   glue_msg_load_res action_load(const char *req_raw)
   {
     PARSE_REQ(glue_msg_load_req);
@@ -502,6 +530,18 @@ struct wllama_context
       params.flash_attn_type = req.flash_attn.value ? LLAMA_FLASH_ATTN_TYPE_AUTO : LLAMA_FLASH_ATTN_TYPE_DISABLED;
     if (req.swa_full.not_null())
       params.swa_full = req.swa_full.value;
+    // keep one copy of a tied token embedding, on the GPU, instead of a second copy on the CPU
+    if (req.token_embd_gpu.not_null() && req.token_embd_gpu.value && params.n_gpu_layers != 0 && model_paths.size() == 1)
+    {
+      if (ggml_backend_buffer_type_t buft = token_embd_gpu_buft(params.model.path))
+      {
+        auto &overrides = params.tensor_buft_overrides;
+        if (!overrides.empty() && overrides.back().pattern == nullptr)
+          overrides.pop_back();
+        overrides.push_back({"^token_embd\\.weight$", buft});
+        overrides.push_back({nullptr, nullptr});
+      }
+    }
     if (req.n_ctx_checkpoints.not_null())
       params.n_ctx_checkpoints = req.n_ctx_checkpoints.value;
     if (req.checkpoint_min_step.not_null())

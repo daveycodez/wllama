@@ -46,6 +46,10 @@ export interface LoadModelParams {
   cache_type_v?: 'f32' | 'f16' | 'q8_0' | 'q5_1' | 'q5_0' | 'q4_1' | 'q4_0';
   flash_attn?: boolean; // true is auto, false is disabled
   swa_full?: boolean;
+  /**
+   * If the model has no `output.weight` (the output head reuses the token embedding) and the GPU supports it, keep the token embedding on the GPU only, instead of one more copy on the CPU
+   */
+  token_embd_gpu?: boolean;
   chat_template?: string;
   jinja?: boolean;
   reasoning?: boolean;
